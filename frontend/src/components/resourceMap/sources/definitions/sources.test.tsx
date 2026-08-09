@@ -132,7 +132,7 @@ describe('useGetAllSources', () => {
     useList.mockReturnValue([[pod]] as any);
     rerender();
 
-    expect(result.current).toEqual({ nodes: [{ id: 'pod-1', kubeObject: pod }] });
+    expect(result.current).toEqual({ nodes: [{ id: 'cluster-a_pod-1', kubeObject: pod }] });
   });
 
   it('adds Gateway sources only when the API group is discovered', () => {
