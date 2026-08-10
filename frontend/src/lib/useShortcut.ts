@@ -31,7 +31,7 @@ export function useShortcut(
   options?: Options,
   deps?: any[]
 ) {
-  const shortcut = useTypedSelector(state => state.shortcuts.shortcuts[shortcutId]);
+  const shortcut = useTypedSelector(state => state.shortcuts?.shortcuts?.[shortcutId]);
   const key = shortcut?.key || '';
 
   return useHotkeys(
@@ -86,6 +86,6 @@ export function formatShortcutKey(key: string): string {
  * @returns The current key combination string
  */
 export function useShortcutKey(shortcutId: string): string {
-  const shortcut = useTypedSelector(state => state.shortcuts.shortcuts[shortcutId]);
+  const shortcut = useTypedSelector(state => state.shortcuts?.shortcuts?.[shortcutId]);
   return shortcut?.key || '';
 }
