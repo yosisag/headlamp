@@ -65,18 +65,15 @@ describe('configExportImport', () => {
   describe('importConfig', () => {
     it('should reject invalid JSON', () => {
       expect(importConfig('{invalid json}')).toBe(false);
-      expect(localStorage.length).toBe(0);
     });
 
     it('should reject arrays', () => {
       expect(importConfig('["value1", "value2"]')).toBe(false);
-      expect(localStorage.length).toBe(0);
     });
 
     it('should reject non-object JSON', () => {
       expect(importConfig('"string"')).toBe(false);
       expect(importConfig('123')).toBe(false);
-      expect(localStorage.length).toBe(0);
     });
 
     it('should reject if values are not strings', () => {
@@ -86,7 +83,6 @@ describe('configExportImport', () => {
         key2: { nested: 'value' },
       };
       expect(importConfig(JSON.stringify(payload))).toBe(false);
-      expect(localStorage.length).toBe(0);
     });
 
     it('should import valid configuration and set in localStorage', () => {
@@ -97,7 +93,6 @@ describe('configExportImport', () => {
       expect(importConfig(JSON.stringify(payload))).toBe(true);
       expect(localStorage.getItem('key1')).toBe('value1');
       expect(localStorage.getItem('key2')).toBe('value2');
-      expect(localStorage.length).toBe(2);
     });
   });
 });

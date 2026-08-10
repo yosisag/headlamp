@@ -17,13 +17,10 @@
 export function exportConfig(): void {
   const config: Record<string, string> = {};
 
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key) {
-      const value = localStorage.getItem(key);
-      if (value !== null) {
-        config[key] = value;
-      }
+  for (const key of Object.keys(localStorage)) {
+    const value = localStorage.getItem(key);
+    if (value !== null) {
+      config[key] = value;
     }
   }
 
