@@ -15,13 +15,20 @@
  */
 
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogTitle from '@mui/material/DialogTitle';
 import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDispatch } from 'react-redux';
 import { isElectron } from '../../../helpers/isElectron';
 import LocaleSelect from '../../../i18n/LocaleSelect/LocaleSelect';
+import { exportConfig, importConfig } from '../../../lib/configExportImport';
 import { setAppSettings } from '../../../redux/configSlice';
 import { defaultTableRowsPerPageOptions } from '../../../redux/configSlice';
 import { useTypedSelector } from '../../../redux/hooks';
@@ -51,6 +58,8 @@ export default function Settings() {
   const [sortSidebar, setSortSidebar] = useState<boolean>(storedSortSidebar);
   const [useEvict, setUseEvict] = useState<boolean>(storedUseEvict);
   const [trayIcon, setTrayIcon] = useState<boolean>(true);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const dispatch = useDispatch();
   const themeName = useTypedSelector(state => state.theme.name);
   const appThemes = useAppThemes();
@@ -102,6 +111,35 @@ export default function Settings() {
     window.desktopApi?.send('set-tray-icon', enabled);
   }
 
+  const handleImportClick = () => {
+    setIsImportModalOpen(true);
+  };
+
+  const handleImportConfirm = () => {
+    setIsImportModalOpen(false);
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = e => {
+      const content = e.target?.result as string;
+      if (importConfig(content)) {
+        window.location.reload();
+      } else {
+        alert(
+          t('translation|Failed to import configuration. The file might be corrupted or invalid.')
+        );
+      }
+    };
+    reader.readAsText(file);
+    // Reset file input
+    event.target.value = '';
+  };
+
   const sidebarLabelID = 'sort-sidebar-label';
   const evictLabelID = 'use-evict-label';
   const trayIconLabelID = 'tray-icon-label';
@@ -113,6 +151,26 @@ export default function Settings() {
       title={t('translation|General Settings')}
       headerProps={{
         actions: [
+          <input
+            key="file-input"
+            type="file"
+            accept=".json"
+            style={{ display: 'none' }}
+            ref={fileInputRef}
+            onChange={handleFileChange}
+          />,
+          <ActionButton
+            key="export"
+            icon="mdi:download"
+            description={t('translation|Export Configuration')}
+            onClick={exportConfig}
+          />,
+          <ActionButton
+            key="import"
+            icon="mdi:upload"
+            description={t('translation|Import Configuration')}
+            onClick={handleImportClick}
+          />,
           <ActionButton
             key="version"
             icon="mdi:information-outline"
@@ -125,6 +183,31 @@ export default function Settings() {
       }}
       backLink
     >
+      <Dialog
+        open={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        aria-labelledby="import-config-dialog-title"
+        aria-describedby="import-config-dialog-description"
+      >
+        <DialogTitle id="import-config-dialog-title">
+          {t('translation|Import Configuration')}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="import-config-dialog-description">
+            {t(
+              'translation|Importing a configuration file will overwrite your existing local settings (themes, clusters, shortcuts, etc). This action cannot be undone. Do you want to proceed?'
+            )}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setIsImportModalOpen(false)} color="primary">
+            {t('translation|Cancel')}
+          </Button>
+          <Button onClick={handleImportConfirm} color="primary">
+            {t('translation|Import')}
+          </Button>
+        </DialogActions>
+      </Dialog>
       <NameValueTable
         rows={[
           {
