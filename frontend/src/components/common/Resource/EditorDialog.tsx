@@ -669,7 +669,7 @@ export default function EditorDialog(props: EditorDialogProps) {
                         name="hideManagedFields"
                       />
                     }
-                    label={t('Hide Managed Fields')}
+                    label={<Typography color="text.primary">{t('Hide Managed Fields')}</Typography>}
                   />
                 )}
                 <FormControlLabel
@@ -680,7 +680,7 @@ export default function EditorDialog(props: EditorDialogProps) {
                       name="useSimpleEditor"
                     />
                   }
-                  label={t('Use minimal editor')}
+                  label={<Typography color="text.primary">{t('Use minimal editor')}</Typography>}
                 />
                 <Button
                   variant="contained"
