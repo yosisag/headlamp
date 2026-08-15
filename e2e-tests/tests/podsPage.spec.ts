@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
+import { expect, test } from '@playwright/test';
 import { execFile } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
-import { expect, test } from '@playwright/test';
 import { HeadlampPage } from './headlampPage';
 import { podsPage } from './podsPage';
 
@@ -176,6 +176,88 @@ test('removes a pod from the list when it is deleted with kubectl', async ({ pag
     await kubectl(kubeconfig, '--namespace=default', 'delete', 'pod', name, '--wait=false');
 
     await expect(podLink).toHaveCount(0, { timeout: 45000 });
+  } finally {
+    await kubectl(
+      kubeconfig,
+      '--namespace=default',
+      'delete',
+      'pod',
+      name,
+      '--ignore-not-found=true'
+    )
+      .catch(() => undefined)
+      .finally(() => rm(tempDirectory, { recursive: true, force: true }));
+  }
+});
+
+test('warns and preserves edits when a pod is modified externally', async ({ page }) => {
+  test.setTimeout(90000);
+  const name = `headlamp-edit-conflict-${Date.now()}`;
+  const tempDirectory = await mkdtemp(join(tmpdir(), 'headlamp-e2e-'));
+  const kubeconfig = join(tempDirectory, 'kubeconfig');
+
+  try {
+    const { stdout } = await execFileAsync('kind', ['get', 'kubeconfig', '--name', 'test']);
+    await writeFile(kubeconfig, stdout);
+    await kubectl(
+      kubeconfig,
+      '--namespace=default',
+      'run',
+      name,
+      '--image=registry.k8s.io/pause:3.10',
+      '--restart=Never'
+    );
+
+    const headlampPage = new HeadlampPage(page);
+    await page.goto('/c/test', { waitUntil: 'domcontentloaded' });
+    const needsAuthentication = await Promise.race([
+      page
+        .getByRole('button', { name: 'Authenticate' })
+        .waitFor({ state: 'visible' })
+        .then(() => true),
+      page
+        .getByRole('heading', { name: 'Overview' })
+        .waitFor({ state: 'visible' })
+        .then(() => false),
+    ]);
+    if (needsAuthentication) {
+      await headlampPage.authenticate(process.env.HEADLAMP_TEST_TOKEN);
+    }
+    await page.goto('/c/test/pods', { waitUntil: 'domcontentloaded' });
+
+    const podLink = page.getByRole('link', { name, exact: true });
+    await expect(podLink).toBeVisible({ timeout: 15000 });
+    await podLink.click();
+
+    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await page.getByText('Use minimal editor').click();
+
+    const editor = page.locator('textarea[aria-label="yaml Code"]');
+    await expect(editor).toBeVisible();
+    const originalYaml = await editor.inputValue();
+    const editedYaml = originalYaml.replace(
+      'metadata:\n',
+      'metadata:\n  annotations:\n    e2e.headlamp.dev/unsaved: "true"\n'
+    );
+    expect(editedYaml).not.toBe(originalYaml);
+    await editor.fill(editedYaml);
+
+    await kubectl(
+      kubeconfig,
+      '--namespace=default',
+      'label',
+      'pod',
+      name,
+      `e2e.headlamp.dev/external=${Date.now()}`,
+      '--overwrite'
+    );
+
+    await expect(
+      page.getByText(
+        'This resource was modified while you were editing. Your changes may conflict with the latest version.'
+      )
+    ).toBeVisible({ timeout: 15000 });
+    await expect(editor).toHaveValue(editedYaml);
   } finally {
     await kubectl(
       kubeconfig,
